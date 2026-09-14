@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────
+# The only file you need to edit regularly.
+# ─────────────────────────────────────────────────────────────
+
+# Write this in plain English. It's fed straight to the model as the
+# scoring rubric, so be concrete — "distributed systems" is weaker than
+# "consensus protocols, Postgres internals, and real production postmortems".
+interests: |
+  - Applied AI/LLM engineering: evals, RAG in production, agent architectures,
+    inference cost and latency work. NOT funding rounds or model-release PR.
+  - Systems and infra: databases, Postgres, distributed systems, performance
+    work with real numbers and benchmarks.
+  - Detailed engineering postmortems and "how we built X" writeups with
+    architecture specifics.
+  - Startup economics, pricing strategy, unit economics.
+
+anti_interests: |
+  - Crypto, web3, NFTs
+  - US political news and culture-war threads
+  - "X is dead" / "Why I left Y" opinion pieces with no technical content
+  - Job postings, Show HN for simple CRUD apps, Ask HN career advice
+
+# Hard filters — free, run before any API call.
+block_keywords: ["hiring", "who is hiring", "nft", "crypto airdrop", "is hiring"]
+block_domains: ["twitter.com", "x.com", "reddit.com"]
+
+# Bypass the LLM scorer entirely. Use for topics you never want to miss.
+always_include_keywords: ["postgres", "postmortem"]
+
+# ─── Tuning ───────────────────────────────────────────────────
+lookback_hours: 24         # match your cron interval
+min_points: 40             # Algolia-side cutoff; 40 ≈ front-page-ish
+max_candidates: 120        # how many to hand the scorer
+relevance_threshold: 7     # 0-10. Raise to 8 if the digest is too noisy.
+max_stories: 10            # hard cap on email length AND cost
+comments_per_story: 5
+summary_sentences: 3
+skip_empty_emails: true    # no email on a quiet day
