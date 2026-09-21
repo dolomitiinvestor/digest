@@ -197,7 +197,8 @@ def claude(prompt, system, max_tokens=1024, retries=3):
         if r.status_code in (429, 500, 502, 503, 529):
             time.sleep(2 ** attempt * 3)
             continue
-        r.raise_for_status()
+        if not r.ok:
+            raise RuntimeError(f"Anthropic API error {r.status_code}: {r.text[:2000]}")
         return "".join(b["text"] for b in r.json()["content"] if b["type"] == "text")
     raise RuntimeError(f"Anthropic API failed after {retries} attempts: {r.status_code} {r.text[:200]}")
 
