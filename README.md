@@ -76,8 +76,10 @@ everything a 6. Name the specific thing you want and the thing you don't:
 
 ## Gotchas
 
-- **Cron is UTC and ignores DST.** Your 8am ET digest becomes 7am ET in November.
-  Edit the workflow twice a year, or just accept the hour.
+- **Delivery is exactly 7:00am ET, year-round.** The cron runs the evening before
+  (23:17 UTC, Sun-Thu) and the email is handed to Resend with `scheduled_at` set to
+  the next 7am America/New_York, so GitHub's cron delays and DST don't matter.
+  Change `SEND_TZ` / `SEND_HOUR` in `hn_digest.py` to move it. Manual runs send immediately.
 - **GitHub disables scheduled workflows after 60 days of repo inactivity.** It emails you
   first. A single commit resets it.
 - **Jina Reader** fails on paywalls, PDFs, and videos — the script falls back to
