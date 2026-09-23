@@ -23,6 +23,7 @@ import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from zoneinfo import ZoneInfo
 
 import requests
 import yaml
@@ -275,20 +276,42 @@ def render_html(stories, cfg):
 </div></body></html>"""
 
 
+SEND_TZ = ZoneInfo("America/New_York")
+SEND_HOUR = 7
+
+
+def next_send_time():
+    """Next 7:00am Eastern (EST or EDT, whichever is in effect)."""
+    now = dt.datetime.now(SEND_TZ)
+    target = now.replace(hour=SEND_HOUR, minute=0, second=0, microsecond=0)
+    if now >= target:
+        target += dt.timedelta(days=1)
+    return target
+
+
 def send_email(body_html, n):
+    # Scheduled runs build the digest the evening before and let Resend
+    # deliver it at exactly 7am ET — GitHub cron can start hours late.
+    # Manual runs send immediately.
+    scheduled = os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+    send_at = next_send_time() if scheduled else dt.datetime.now(SEND_TZ)
+    payload = {
+        "from": os.environ["MAIL_FROM"],
+        "to": [e.strip() for e in os.environ["MAIL_TO"].split(",")],
+        "subject": f"HN Digest — {send_at:%b %d} ({n} stories)",
+        "html": body_html,
+    }
+    if scheduled:
+        payload["scheduled_at"] = send_at.isoformat()
     r = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {os.environ['RESEND_API_KEY']}"},
-        json={
-            "from": os.environ["MAIL_FROM"],
-            "to": [e.strip() for e in os.environ["MAIL_TO"].split(",")],
-            "subject": f"HN Digest — {dt.date.today():%b %d} ({n} stories)",
-            "html": body_html,
-        },
+        json=payload,
         timeout=30,
     )
     r.raise_for_status()
-    print(f"Sent: {r.json().get('id')}")
+    when = f"scheduled for {send_at:%a %b %d %H:%M %Z}" if scheduled else "sent now"
+    print(f"Email {when}: {r.json().get('id')}")
 
 
 # ---------------------------------------------------------------- main

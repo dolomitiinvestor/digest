@@ -2,9 +2,12 @@ name: HN Digest
 
 on:
   schedule:
-    # 12:00 UTC = 8am EDT / 7am EST. Cron is ALWAYS UTC — it does not shift for DST.
-    # GitHub queues these, so expect 5-20 min of drift. Fine for a daily email.
-    - cron: "0 12 * * 1-5"   # weekdays only; use "0 12 * * *" for every day
+    # Builds the digest the evening before; Resend delivers it at exactly
+    # 7:00am America/New_York (DST handled in hn_digest.py).
+    # 23:17 UTC Sun-Thu = 6-7pm ET the night before a weekday. GitHub can start
+    # runs hours late, so this leaves ~12h of slack before 7am.
+    # For every day, use "17 23 * * *".
+    - cron: "17 23 * * 0-4"
   workflow_dispatch:          # adds a "Run workflow" button for manual testing
 
 # Prevents overlapping runs if one hangs
