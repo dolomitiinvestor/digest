@@ -121,11 +121,14 @@ def prefilter(stories, cfg):
     for s in stories:
         blob = f"{s['title']} {s['domain']}".lower()
         if any(k in blob for k in always):
+            s["status"] = "always-include"
             forced.append(s)
             continue
         if any(k in blob for k in block_kw):
+            s["status"] = "blocked keyword"
             continue
         if any(d in s["domain"].lower() for d in block_dom):
+            s["status"] = "blocked domain"
             continue
         kept.append(s)
     return kept, forced
@@ -242,7 +245,44 @@ Plain text. No headings, no bullets, no preamble."""
 
 # ---------------------------------------------------------------- output
 
-def render_html(stories, cfg):
+def render_all_table(candidates, selected):
+    """Every candidate with its rating, so you can see what the filter dropped."""
+    picked = {s["id"] for s in selected}
+
+    def sort_key(s):
+        return (s["id"] not in picked, -s.get("score", -1), -s["points"])
+
+    rows = []
+    for s in sorted(candidates, key=sort_key):
+        if "score" in s:
+            rating = f"{s['score']}/10"
+        else:
+            rating = s.get("status", "—")
+        why = html.escape(s.get("why", ""))
+        weight = "600" if s["id"] in picked else "400"
+        mark = "✓" if s["id"] in picked else ""
+        rows.append(f"""
+<tr style="border-bottom:1px solid #eee;vertical-align:top">
+  <td style="padding:6px 6px 6px 0;color:#2a8a2a">{mark}</td>
+  <td style="padding:6px 8px 6px 0;white-space:nowrap;color:#555">{rating}</td>
+  <td style="padding:6px 8px 6px 0">
+    <a href="{html.escape(s['url'])}" style="color:#111;font-weight:{weight};text-decoration:none">{html.escape(s['title'])}</a>
+    <div style="color:#999;font-size:11px">{html.escape(s['domain'])}{' · ' + why if why else ''}</div>
+  </td>
+  <td style="padding:6px 0;white-space:nowrap;text-align:right">
+    <a href="{s['hn_url']}" style="color:#ff6600;text-decoration:none">{s['points']} pts</a>
+  </td>
+</tr>""")
+    return f"""
+<div style="margin-top:36px">
+  <div style="font-size:13px;color:#888;font-weight:700;letter-spacing:.06em;
+              text-transform:uppercase;margin-bottom:8px">All {len(candidates)} candidates</div>
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.4">{''.join(rows)}
+  </table>
+</div>"""
+
+
+def render_html(stories, cfg, candidates=()):
     today = dt.date.today().strftime("%a %d %b %Y")
     rows = []
     for s in stories:
@@ -263,6 +303,8 @@ def render_html(stories, cfg):
 </div>""")
 
     body = "".join(rows) or "<p>Nothing matched your filters today.</p>"
+    if candidates:
+        body += render_all_table(candidates, stories)
     return f"""<!doctype html><html><body style="margin:0;background:#fafafa">
 <div style="max-width:620px;margin:0 auto;padding:32px 22px;
             font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif">
@@ -342,7 +384,7 @@ def main():
         with ThreadPoolExecutor(max_workers=4) as pool:
             selected = list(pool.map(lambda s: summarize(s, cfg), selected))
 
-    page = render_html(selected, cfg)
+    page = render_html(selected, cfg, candidates)
 
     if args.dry_run:
         with open("preview.html", "w") as f:
